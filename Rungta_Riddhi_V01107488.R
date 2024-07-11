@@ -1,0 +1,77 @@
+# Load necessary libraries
+library(tidyverse)
+library(car)
+library(ggplot2)
+library(broom)
+
+# Load the dataset
+data <- read.csv('cancer_reg.csv')
+
+# View the first few rows and structure of the data
+head(data)
+str(data)
+
+# Handle missing values by removing rows with NAs
+data <- na.omit(data)
+
+# Check for missing values again
+sum(is.na(data))
+
+# Select features to include in the model 
+# Modify the feature names according to the actual dataset
+features <- c("avgDeathsPerYear", "povertyPercent", "incidenceRate", "AvgHouseholdSize", "avgAnnCount", "incidenceRate","PercentMarried","PctNoHS18_24", "PctHS18_24", "PctHS25_Over", "PctBachDeg25_Over", "PctUnemployed16_Over", "PctPrivateCoverage", "PctEmpPrivCoverage", "PctWhite", "PctOtherRace", "PctMarriedHouseholds", "MedianAgeMale", "avgAnnCount") # replace with actual feature names
+target <- "TARGET_deathRate"
+
+# Create the formula for the model
+formula <- as.formula(paste(target, "~", paste(features, collapse = "+")))
+
+# View the formula
+formula
+
+# Build the OLS regression model
+model <- lm(formula, data = data)
+
+# Summary of the model
+summary(model)
+
+# Calculate Adjusted R-squared and RMSE
+adj_r_squared <- summary(model)$adj.r.squared
+rmse <- sqrt(mean(residuals(model)^2))
+
+# Print Adjusted R-squared and RMSE
+cat("Adjusted R-squared:", adj_r_squared, "\n")
+cat("RMSE:", rmse, "\n")
+
+# Plot residuals vs fitted values to assess linearity
+ggplot(model, aes(.fitted, .resid)) + 
+  geom_point() + 
+  geom_hline(yintercept = 0, linetype = "dashed") + 
+  labs(title = "Residuals vs Fitted", x = "Fitted values", y = "Residuals")
+# Durbin-Watson test for autocorrelation
+library(lmtest)
+dwtest(model)
+# Breusch-Pagan test for heteroskedasticity
+bptest(model)
+
+# Plot to assess heteroskedasticity
+ggplot(model, aes(.fitted, sqrt(abs(.stdresid)))) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  labs(title = "Scale-Location Plot", x = "Fitted values", y = "sqrt(|Standardized residuals|)")
+
+
+# Histogram of residuals
+ggplot(model, aes(.resid)) + 
+  geom_histogram(bins = 30) + 
+  labs(title = "Histogram of Residuals", x = "Residuals", y = "Frequency")
+# Variance Inflation Factor (VIF) to check multicollinearity
+vif(model)
+# Interpretation of the model output
+# Summarize the results and explain the significance of the coefficients
+summary(model)
+# Identify outliers using Cook's distance
+cooksd <- cooks.distance(model)
+influential <- as.numeric(names(cooksd)[(cooksd > 4/length(cooksd))])
+cat("Influential observations (outliers):", influential, "\n")
+
+
